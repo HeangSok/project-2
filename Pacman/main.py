@@ -6,6 +6,7 @@ import random
 import button
 import queue
 import os
+from collections import deque
 
 
 
@@ -340,6 +341,40 @@ class DummyGhost(pygame.sprite.Sprite):
                 self.speedx = random.choice(self.choice)
 
 
+# class SmartGhost(pygame.sprite.Sprite):
+#     def __init__(self):
+#         pygame.sprite.Sprite.__init__(self)
+#         self.image = orange_ghost_img  # first mandatory
+#         self.image.set_colorkey(BLACK)
+#         self.rect = self.image.get_rect()  # second mandatory
+#         self.rect.x = random.randrange(11, 15) * SPRITE
+#         self.rect.y = random.randrange(13, 15) * SPRITE
+#         self.choices = [[-4, 4], [-3, 3]]
+#         self.choice = random.choice(self.choices)
+#         self.speedx = random.choice(self.choice)  # pygame variable to move the object on x axis
+#         self.speedy = random.choice(self.choice)
+#         self.starting_node = [self.rect.x, self.rect.y]
+#         self.visited_nodes = []
+#         self.ghosts_queue = queue.Queue()
+
+#     def breath_first_search(self):
+#         """Make all the smart ghosts chase after Pacman"""
+#         pass
+
+
+#     def update(self):
+#         self.rect.y += self.speedy
+#         collide_with_wall = pygame.sprite.groupcollide(smart_ghost, walls, False, False)
+#         if collide_with_wall:
+#             self.rect.y += -self.speedy
+#             self.rect.x += self.speedx
+
+#             collide_with_wall = pygame.sprite.groupcollide(smart_ghost, walls, False, False)
+#             if collide_with_wall:
+#                 self.rect.x += -self.speedx
+#                 self.speedy = random.choice(self.choice)
+#                 self.speedx = random.choice(self.choice)
+
 class SmartGhost(pygame.sprite.Sprite):
     def __init__(self):
         pygame.sprite.Sprite.__init__(self)
@@ -356,24 +391,56 @@ class SmartGhost(pygame.sprite.Sprite):
         self.visited_nodes = []
         self.ghosts_queue = queue.Queue()
 
-    def breath_first_search(self):
-        """Make all the smart ghosts chase after Pacman"""
-        pass
+    def bfs(self, start, target):
+        queue = deque([start])
+        visited = set([start])
+        path = {start: None}
 
+        while queue:
+            current = queue.popleft()
+            if current == target:
+                break
+
+            for dx, dy in [(-1, 0), (1, 0), (0, -1), (0, 1)]:
+                next_cell = (current[0] + dx, current[1] + dy)
+                if next_cell not in visited and self.is_valid_move(next_cell):
+                    queue.append(next_cell)
+                    visited.add(next_cell)
+                    path[next_cell] = current
+
+        return self.reconstruct_path(path, start, target)
+
+    def is_valid_move(self, position):
+        x, y = position
+        if 0 <= x < len(GAME_BOARD[0]) and 0 <= y < len(GAME_BOARD):
+            return GAME_BOARD[y][x] != 3  # Assuming 3 represents a wall
+        return False
+
+    def reconstruct_path(self, path, start, target):
+        current = target
+        path_to_follow = []
+
+        while current != start:
+            path_to_follow.append(current)
+            current = path[current]
+
+        path_to_follow.reverse()
+        return path_to_follow
 
     def update(self):
-        self.rect.y += self.speedy
-        collide_with_wall = pygame.sprite.groupcollide(smart_ghost, walls, False, False)
-        if collide_with_wall:
-            self.rect.y += -self.speedy
-            self.rect.x += self.speedx
+        # Get Pac-Man's position (assuming player is your Pac-Man object)
+        pacman_pos = (player.rect.x // SPRITE, player.rect.y // SPRITE)
+        # Ghost's current position
+        ghost_pos = (self.rect.x // SPRITE, self.rect.y // SPRITE)
 
-            collide_with_wall = pygame.sprite.groupcollide(smart_ghost, walls, False, False)
-            if collide_with_wall:
-                self.rect.x += -self.speedx
-                self.speedy = random.choice(self.choice)
-                self.speedx = random.choice(self.choice)
+        # Find path to Pac-Man
+        path_to_pacman = self.bfs(ghost_pos, pacman_pos)
 
+        # Move along the path
+        if path_to_pacman and len(path_to_pacman) > 1:
+            next_cell = path_to_pacman[1]  # Next cell in the path
+            self.rect.x = next_cell[0] * SPRITE
+            self.rect.y = next_cell[1] * SPRITE
 
 
 
